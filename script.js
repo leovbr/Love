@@ -1,5 +1,6 @@
 (() => {
   const canvas = document.getElementById("heartCanvas");
+  const scene = document.querySelector(".scene");
   const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) return;
 
@@ -51,10 +52,13 @@
       return {
         tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
         size:rand(.85,2.65),
+        inner:!edge && fill<.88,
+        tone:palette<.28?0:palette<.72?1:2,
         color:palette<.28?"rgba(65,145,255,.98)":palette<.72?"rgba(25,195,255,1)":"rgba(205,248,255,1)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
         drift:rand(.65,2.2),seed:rand(0,Math.PI*2),
-        windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35)
+        windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35),
+        flowPhase:rand(0,Math.PI*2),flowRate:rand(.65,1.5),flowAmp:rand(1.8,5.5),prevX:0,prevY:0
       };
     });
   }
@@ -88,6 +92,9 @@
     if(pointerActive && now-lastPointerTime>1600) pointerActive=false;
 
     const time=(now-startTime)*.001;
+    const revealRaw=Math.max(0,Math.min(1,(time-.45)/3.35));
+    const reveal=1-Math.pow(1-revealRaw,3);
+    if(scene && revealRaw>0 && !scene.classList.contains("revealed")) scene.classList.add("revealed");
     const beat=reducedMotion?1:1+.032*Math.pow(Math.max(0,Math.sin(time*2.05)),12)+.009*Math.sin(time*2.05);
     const cx=width*.5,cy=height*.49;
     const scale=Math.min(width*.425,height*.425,coarse?270:315);
@@ -98,18 +105,18 @@
     nebula1.addColorStop(0,"rgba(0,105,255,.105)");
     nebula1.addColorStop(.42,"rgba(0,55,155,.055)");
     nebula1.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=nebula1;ctx.fillRect(0,0,width,height);
+    ctx.globalAlpha=reveal;ctx.fillStyle=nebula1;ctx.fillRect(0,0,width,height);
     const nebula2=ctx.createRadialGradient(cx+Math.sin(time*.12)*width*.16,cy+height*.18,1,cx+Math.sin(time*.12)*width*.16,cy+height*.18,Math.max(width,height)*.43);
     nebula2.addColorStop(0,"rgba(0,185,255,.055)");
     nebula2.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=nebula2;ctx.fillRect(0,0,width,height);
+    ctx.fillStyle=nebula2;ctx.fillRect(0,0,width,height);ctx.globalAlpha=1;
 
     // Distant stars and drifting cosmic dust.
     ctx.fillStyle="rgba(170,220,255,.8)";
     ctx.beginPath();
     for(const s of stars){
       const a=s.alpha*(.62+.38*Math.sin(time*s.speed+s.phase));
-      ctx.globalAlpha=a;
+      ctx.globalAlpha=a*reveal;
       ctx.moveTo(s.x+s.r,s.y);ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     }
     ctx.fill();ctx.globalAlpha=1;
@@ -118,7 +125,7 @@
       for(const d of dust){
         const x=(d.x+Math.sin(time*.18+d.phase)*d.speed+width)%width;
         const y=(d.y+Math.cos(time*.13+d.phase)*d.speed*.55+height)%height;
-        ctx.globalAlpha=d.alpha*(.7+.3*Math.sin(time*.7+d.phase));
+        ctx.globalAlpha=d.alpha*(.7+.3*Math.sin(time*.7+d.phase))*reveal;
         ctx.moveTo(x+d.r,y);ctx.arc(x,y,d.r,0,Math.PI*2);
       }
       ctx.fill();ctx.globalAlpha=1;
@@ -134,11 +141,13 @@
     // No large orbital rings: keep the heart silhouette clean and uninterrupted.
 
     const groups=[
-      {color:"rgba(65,155,255,.98)",path:new Path2D()},
-      {color:"rgba(35,200,255,1)",path:new Path2D()},
-      {color:"rgba(175,240,255,1)",path:new Path2D()}
+      {color:"rgba(65,145,255,.98)",path:new Path2D()},
+      {color:"rgba(25,195,255,1)",path:new Path2D()},
+      {color:"rgba(205,248,255,1)",path:new Path2D()}
     ];
     const glowPath=new Path2D();
+    const innerTrailPath=new Path2D();
+    const innerGlowPath=new Path2D();
     const influence=coarse?92:105, influence2=influence*influence;
 
     for(let i=0;i<particles.length;i++){
@@ -151,7 +160,9 @@
       const streamX=windX+(p.tx-cx)*.28,streamY=windY+(p.ty-cy)*.28;
       const orbit=reducedMotion?0:Math.sin(time*p.speed+p.phase)*p.drift;
       const shimmer=reducedMotion?0:Math.cos(time*.8+p.seed)*1.25;
-      const heartX=cx+(p.tx-cx)*beat+orbit,heartY=cy+(p.ty-cy)*beat+shimmer;
+      const flowX=(!reducedMotion && p.inner)?Math.sin(time*p.flowRate+p.flowPhase+(p.ty-cy)/scale*3.4)*p.flowAmp:0;
+      const flowY=(!reducedMotion && p.inner)?Math.cos(time*p.flowRate*.73+p.flowPhase+(p.tx-cx)/scale*2.8)*p.flowAmp*.58:0;
+      const heartX=cx+(p.tx-cx)*beat+orbit+flowX,heartY=cy+(p.ty-cy)*beat+shimmer+flowY;
       const targetX=streamX+(heartX-streamX)*ease,targetY=streamY+(heartY-streamY)*ease;
 
       let pushX=0,pushY=0;
@@ -167,15 +178,34 @@
 
       const twinkle=.82+.18*Math.sin(time*1.7+p.phase);
       const radius=p.size*twinkle;
-      const group=p.color.includes("65,155")?groups[0]:p.color.includes("35,200")?groups[1]:groups[2];
+      const group=groups[p.tone];
       group.path.moveTo(p.x+radius,p.y);group.path.arc(p.x,p.y,radius,0,Math.PI*2);
+      if(p.inner && i%3===0 && formation>.88 && !reducedMotion){
+        const dx=p.x-p.prevX,dy=p.y-p.prevY;
+        if(p.prevX && (Math.abs(dx)+Math.abs(dy))>.12){
+          innerTrailPath.moveTo(p.x-dx*2.8,p.y-dy*2.8);
+          innerTrailPath.lineTo(p.x+dx*.8,p.y+dy*.8);
+        }
+        p.prevX=p.x;p.prevY=p.y;
+        if(i%9===0){const core=radius*2.2;innerGlowPath.moveTo(p.x+core,p.y);innerGlowPath.arc(p.x,p.y,core,0,Math.PI*2);}
+      }
       if(i%3===0){
         const glow=radius*2.75;
         glowPath.moveTo(p.x+glow,p.y);glowPath.arc(p.x,p.y,glow,0,Math.PI*2);
       }
     }
+    ctx.globalAlpha=reveal;
     ctx.fillStyle="rgba(45,175,255,.22)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
+    if(!reducedMotion){
+      ctx.lineCap="round";ctx.lineJoin="round";
+      ctx.strokeStyle="rgba(110,225,255,.42)";ctx.lineWidth=.72;
+      ctx.shadowColor="rgba(30,175,255,.75)";ctx.shadowBlur=5;
+      ctx.stroke(innerTrailPath);
+      ctx.shadowBlur=0;
+      ctx.fillStyle="rgba(100,220,255,.13)";ctx.fill(innerGlowPath);
+    }
+    ctx.globalAlpha=1;
 
     // A few slow-moving sparks travel around the silhouette.
     if(!reducedMotion){
