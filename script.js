@@ -204,8 +204,8 @@
         p.prevX=p.x;p.prevY=p.y;
         if(i%9===0){const core=radius*2.2;innerGlowPath.moveTo(p.x+core,p.y);innerGlowPath.arc(p.x,p.y,core,0,Math.PI*2);}
       }
-      if(i%3===0){
-        const glow=radius*2.75;
+      if(i%7===0){
+        const glow=radius*2.35;
         glowPath.moveTo(p.x+glow,p.y);glowPath.arc(p.x,p.y,glow,0,Math.PI*2);
       }
     }
