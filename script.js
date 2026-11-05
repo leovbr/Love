@@ -9,7 +9,7 @@
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 1850 : 2500;
+  const BASE_COUNT = coarse ? 2450 : 3350;
   const STAR_COUNT = coarse ? 90 : 140;
   const DUST_COUNT = coarse ? 34 : 55;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -42,7 +42,7 @@
     const count = Math.max(850,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
-      const edge=Math.random()<.42;
+      const edge=Math.random()<.54;
       const fill=edge?rand(.965,1.025):Math.sqrt(Math.random())*.96;
       const tx=width/2+p.x*scale*fill;
       const ty=height*.49+p.y*scale*fill;
@@ -50,7 +50,7 @@
       const palette=Math.random();
       return {
         tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
-        size:rand(.95,2.05),
+        size:rand(1.05,2.35),
         color:palette<.24?"rgba(65,155,255,.98)":palette<.7?"rgba(35,200,255,1)":"rgba(175,240,255,1)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
         drift:rand(.65,2.2),seed:rand(0,Math.PI*2),
@@ -90,7 +90,7 @@
     const time=(now-startTime)*.001;
     const beat=reducedMotion?1:1+.032*Math.pow(Math.max(0,Math.sin(time*2.05)),12)+.009*Math.sin(time*2.05);
     const cx=width*.5,cy=height*.49;
-    const scale=Math.min(width*.405,height*.405,coarse?258:300);
+    const scale=Math.min(width*.425,height*.425,coarse?270:315);
     ctx.clearRect(0,0,width,height);
 
     // Layered nebula clouds: low-cost gradients behind the particle heart.
@@ -131,15 +131,7 @@
     aura.addColorStop(1,"rgba(0,0,0,0)");
     ctx.fillStyle=aura;ctx.fillRect(0,0,width,height);
 
-    // Fine orbital ellipses add depth without competing with the heart.
-    if(!reducedMotion){
-      ctx.save();ctx.translate(cx,cy);ctx.rotate(-.16+Math.sin(time*.12)*.025);
-      ctx.strokeStyle="rgba(50,155,255,.105)";ctx.lineWidth=.8;
-      ctx.beginPath();ctx.ellipse(0,0,scale*1.28,scale*.53,0,0,Math.PI*2);ctx.stroke();
-      ctx.rotate(1.02);ctx.strokeStyle="rgba(85,195,255,.075)";
-      ctx.beginPath();ctx.ellipse(0,0,scale*1.36,scale*.48,0,0,Math.PI*2);ctx.stroke();
-      ctx.restore();
-    }
+    // No large orbital rings: keep the heart silhouette clean and uninterrupted.
 
     const groups=[
       {color:"rgba(65,155,255,.98)",path:new Path2D()},
@@ -177,12 +169,12 @@
       const radius=p.size*twinkle;
       const group=p.color.includes("65,155")?groups[0]:p.color.includes("35,200")?groups[1]:groups[2];
       group.path.moveTo(p.x+radius,p.y);group.path.arc(p.x,p.y,radius,0,Math.PI*2);
-      if(i%7===0){
-        const glow=radius*2.15;
+      if(i%5===0){
+        const glow=radius*2.55;
         glowPath.moveTo(p.x+glow,p.y);glowPath.arc(p.x,p.y,glow,0,Math.PI*2);
       }
     }
-    ctx.fillStyle="rgba(45,175,255,.13)";ctx.fill(glowPath);
+    ctx.fillStyle="rgba(45,175,255,.19)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
 
     // A few slow-moving sparks travel around the silhouette.
