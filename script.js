@@ -38,7 +38,7 @@
   }
 
   function createParticles() {
-    const scale = Math.min(width*.405,height*.405,coarse?258:300);
+    const scale = Math.min(width*.425,height*.425,coarse?270:315);
     const count = Math.max(1500,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
@@ -184,7 +184,8 @@
         const t=time*.19+i*Math.PI/7;
         const p=heartPoint(t);
         const x=cx+p.x*scale*1.075*beat,y=cy+p.y*scale*1.075*beat;
-        ctx.moveTo(x+rand(1.1,2.0),y);ctx.arc(x,y,rand(1.1,2.0),0,Math.PI*2);
+        const sparkRadius=1.1+(i%3)*.35;
+        ctx.moveTo(x+sparkRadius,y);ctx.arc(x,y,sparkRadius,0,Math.PI*2);
       }
       ctx.fill();
     }
