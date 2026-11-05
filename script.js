@@ -9,7 +9,7 @@
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 1450 : 2050;
+  const BASE_COUNT = coarse ? 2250 : 3100;
   const STAR_COUNT = coarse ? 55 : 85;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -34,7 +34,7 @@
 
   function createParticles() {
     const scale = Math.min(width*.39,height*.39,coarse?245:285);
-    const count = Math.max(650,Math.round(BASE_COUNT*quality));
+    const count = Math.max(900,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
       const edge=Math.random()<.38;
@@ -45,10 +45,11 @@
       const palette=Math.random();
       return {
         tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
-        size:rand(.55,1.55),
+        size:rand(.72,1.85),
         color:palette<.25?"rgba(45,145,255,.82)":palette<.72?"rgba(25,190,255,.9)":"rgba(145,230,255,.96)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
-        drift:rand(.5,2.1),seed:rand(0,Math.PI*2)
+        drift:rand(.6,2.4),seed:rand(0,Math.PI*2),
+        windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35)
       };
     });
   }
@@ -110,18 +111,27 @@
       {color:"rgba(145,230,255,.96)",path:new Path2D()}
     ];
     const glowPath=new Path2D();
+    const windTrail=new Path2D();
     const influence=coarse?92:105;
     const influence2=influence*influence;
 
     for(let i=0;i<particles.length;i++){
       const p=particles[i];
-      const formation=Math.min(1,Math.max(0,(time-.18-p.delay*.13)/1.65));
+      // Blue cosmic wind streamlines gradually curl inward and form the heart.
+      const formation=Math.min(1,Math.max(0,(time-.45-p.delay*.22)/3.35));
       const ease=1-Math.pow(1-formation,3);
+      const windPhase=time*p.windSpeed+p.windAngle;
+      const windX=cx+Math.cos(windPhase)*scale*p.windRadius*p.windWidth+Math.sin(windPhase*1.7+p.seed)*scale*.16;
+      const windY=cy+Math.sin(windPhase)*scale*p.windRadius*.78+Math.cos(windPhase*1.35+p.seed)*scale*.2;
+      const streamX=windX+(p.tx-cx)*.28;
+      const streamY=windY+(p.ty-cy)*.28;
       // The heart keeps breathing and shimmering after formation is complete.
       const orbit=reducedMotion?0:Math.sin(time*p.speed+p.phase)*p.drift;
       const shimmer=reducedMotion?0:Math.cos(time*.8+p.seed)*1.25;
-      const targetX=cx+(p.tx-cx)*beat+orbit;
-      const targetY=cy+(p.ty-cy)*beat+shimmer;
+      const heartX=cx+(p.tx-cx)*beat+orbit;
+      const heartY=cy+(p.ty-cy)*beat+shimmer;
+      const targetX=streamX+(heartX-streamX)*ease;
+      const targetY=streamY+(heartY-streamY)*ease;
 
       let pushX=0,pushY=0;
       if(pointerActive){
@@ -132,7 +142,7 @@
           pushX=dx/dist*force;pushY=dy/dist*force;
         }
       }
-      const spring=.045+ease*.105;
+      const spring=.035+ease*.115;
       p.x+=(targetX+pushX-p.x)*spring;
       p.y+=(targetY+pushY-p.y)*spring;
 
@@ -142,12 +152,21 @@
       group.path.moveTo(p.x+radius,p.y);
       group.path.arc(p.x,p.y,radius,0,Math.PI*2);
 
-      if(i%6===0){
+      if(formation<.98 && i%3===0){
+        const tailX=p.x-Math.cos(windPhase)*9;
+        const tailY=p.y-Math.sin(windPhase)*9;
+        windTrail.moveTo(tailX,tailY);windTrail.lineTo(p.x,p.y);
+      }
+      if(i%5===0){
         glowPath.moveTo(p.x+2.5,p.y);
         glowPath.arc(p.x,p.y,2.5,0,Math.PI*2);
       }
     }
-    ctx.fillStyle="rgba(30,160,255,.13)";ctx.fill(glowPath);
+    if(time<3.9){
+      ctx.strokeStyle="rgba(55,175,255,.16)";ctx.lineWidth=1.15;
+      ctx.stroke(windTrail);
+    }
+    ctx.fillStyle="rgba(30,160,255,.15)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
 
     // Sparse electric sparks orbit around the heart outline.
