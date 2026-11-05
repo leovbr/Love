@@ -4,15 +4,15 @@
   const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) return;
 
-  let width = 0, height = 0, particles = [], stars = [], dust = [];
+  let width = 0, height = 0, particles = [], stars = [], dust = [], loveRain = [];
   let rafId = 0, lastFrame = 0, frameSamples = 0, frameTotal = 0;
   let quality = 1, pointerActive = false, pointerX = -10000, pointerY = -10000;
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 2800 : 4400;
+  const BASE_COUNT = coarse ? 4300 : 5600;
   const STAR_COUNT = coarse ? 90 : 150;
-  const DUST_COUNT = coarse ? 32 : 60;
+  const DUST_COUNT = coarse ? 24 : 48;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function heartPoint(t) {
@@ -22,7 +22,7 @@
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.1 : 1.35);
+    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1 : 1.25);
     width = rect.width; height = rect.height;
     canvas.width = Math.max(1, Math.round(width*dpr));
     canvas.height = Math.max(1, Math.round(height*dpr));
@@ -35,12 +35,17 @@
       x:Math.random()*width,y:Math.random()*height,r:rand(.7,1.8),
       phase:rand(0,Math.PI*2),speed:rand(3,10),alpha:rand(.12,.3)
     }));
+    loveRain = Array.from({length:coarse?18:28},()=>({
+      x:rand(-20,width+20), y:rand(-height,height), speed:rand(18,42),
+      size:rand(10,15), alpha:rand(.12,.3), drift:rand(-5,5),
+      phase:rand(0,Math.PI*2)
+    }));
     createParticles();
   }
 
   function createParticles() {
     const scale = Math.min(width*.425,height*.425,coarse?270:315);
-    const count = Math.max(1500,Math.round(BASE_COUNT*quality));
+    const count = Math.max(4000,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
       const edge=Math.random()<.43;
@@ -103,6 +108,23 @@
     // Background is composed by lightweight CSS layers; keep canvas work focused on particles.
     const bgRaw=Math.max(0,Math.min(1,time/7.2));
     const bgReveal=1-Math.pow(1-bgRaw,3);
+
+    // Subtle falling "I LOVE YOU" messages, kept behind the heart.
+    if(loveRain.length){
+      ctx.save();
+      ctx.globalCompositeOperation="screen";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      for(const item of loveRain){
+        const y=((item.y+time*item.speed)%(height+80)+height+80)%(height+80)-40;
+        const x=item.x+Math.sin(time*.22+item.phase)*item.drift;
+        ctx.globalAlpha=item.alpha*bgReveal;
+        ctx.font=`600 ${item.size}px system-ui, sans-serif`;
+        ctx.fillStyle="rgba(75,175,255,.78)";
+        ctx.fillText("I LOVE YOU",x,y);
+      }
+      ctx.restore();
+    }
 
     // Distant stars and drifting cosmic dust.
     ctx.fillStyle="rgba(170,220,255,.8)";
@@ -193,7 +215,7 @@
     if(!reducedMotion){
       ctx.lineCap="round";ctx.lineJoin="round";
       ctx.strokeStyle="rgba(110,225,255,.42)";ctx.lineWidth=.72;
-      ctx.shadowColor="rgba(30,175,255,.75)";ctx.shadowBlur=5;
+      ctx.shadowColor="rgba(30,175,255,.45)";ctx.shadowBlur=2;
       ctx.stroke(innerTrailPath);
       ctx.shadowBlur=0;
       ctx.fillStyle="rgba(100,220,255,.13)";ctx.fill(innerGlowPath);
