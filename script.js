@@ -37,7 +37,7 @@
     }));
     loveRain = Array.from({length:coarse?18:28},()=>({
       x:rand(-20,width+20), y:rand(-height,height), speed:rand(18,42),
-      size:rand(10,15), alpha:rand(.12,.3), drift:rand(-5,5),
+      size:rand(13,18), alpha:rand(.38,.68), drift:rand(-5,5),
       phase:rand(0,Math.PI*2)
     }));
     createParticles();
@@ -59,7 +59,7 @@
         size:rand(.85,2.65),
         inner:!edge && fill<.88,
         tone:palette<.28?0:palette<.72?1:2,
-        color:palette<.28?"rgba(65,145,255,.98)":palette<.72?"rgba(25,195,255,1)":"rgba(205,248,255,1)",
+        color:palette<.28?"rgba(125,0,22,1)":palette<.72?"rgba(225,12,48,1)":"rgba(255,190,198,1)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
         drift:rand(.65,2.2),seed:rand(0,Math.PI*2),
         windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35),
@@ -119,8 +119,11 @@
         const y=((item.y+time*item.speed)%(height+80)+height+80)%(height+80)-40;
         const x=item.x+Math.sin(time*.22+item.phase)*item.drift;
         ctx.globalAlpha=item.alpha*bgReveal;
-        ctx.font=`600 ${item.size}px system-ui, sans-serif`;
-        ctx.fillStyle="rgba(75,175,255,.78)";
+        ctx.font=`700 ${item.size}px system-ui, sans-serif`;
+        ctx.lineWidth=2.5;
+        ctx.strokeStyle="rgba(15,0,5,.92)";
+        ctx.strokeText("I LOVE YOU",x,y);
+        ctx.fillStyle="rgba(255,105,130,.96)";
         ctx.fillText("I LOVE YOU",x,y);
       }
       ctx.restore();
@@ -136,7 +139,7 @@
     }
     ctx.fill();ctx.globalAlpha=1;
     if(!reducedMotion){
-      ctx.fillStyle="rgba(65,165,255,.5)";ctx.beginPath();
+      ctx.fillStyle="rgba(190,35,65,.38)";ctx.beginPath();
       for(const d of dust){
         const x=(d.x+Math.sin(time*.18+d.phase)*d.speed+width)%width;
         const y=(d.y+Math.cos(time*.13+d.phase)*d.speed*.55+height)%height;
@@ -148,17 +151,17 @@
 
     ctx.globalCompositeOperation="lighter";
     const aura=ctx.createRadialGradient(cx,cy,5,cx,cy,scale*1.65);
-    aura.addColorStop(0,"rgba(0,150,255,.19)");
-    aura.addColorStop(.42,"rgba(0,95,255,.085)");
+    aura.addColorStop(0,"rgba(190,0,32,.17)");
+    aura.addColorStop(.42,"rgba(115,0,24,.09)");
     aura.addColorStop(1,"rgba(0,0,0,0)");
     ctx.fillStyle=aura;ctx.fillRect(0,0,width,height);
 
     // No large orbital rings: keep the heart silhouette clean and uninterrupted.
 
     const groups=[
-      {color:"rgba(65,145,255,.98)",path:new Path2D()},
-      {color:"rgba(25,195,255,1)",path:new Path2D()},
-      {color:"rgba(205,248,255,1)",path:new Path2D()}
+      {color:"rgba(125,0,22,1)",path:new Path2D()},
+      {color:"rgba(225,12,48,1)",path:new Path2D()},
+      {color:"rgba(255,190,198,1)",path:new Path2D()}
     ];
     const glowPath=new Path2D();
     const innerTrailPath=new Path2D();
@@ -210,21 +213,21 @@
       }
     }
     ctx.globalAlpha=reveal;
-    ctx.fillStyle="rgba(45,175,255,.22)";ctx.fill(glowPath);
+    ctx.fillStyle="rgba(255,25,55,.2)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
     if(!reducedMotion){
       ctx.lineCap="round";ctx.lineJoin="round";
-      ctx.strokeStyle="rgba(110,225,255,.42)";ctx.lineWidth=.72;
-      ctx.shadowColor="rgba(30,175,255,.45)";ctx.shadowBlur=2;
+      ctx.strokeStyle="rgba(255,105,125,.48)";ctx.lineWidth=.72;
+      ctx.shadowColor="rgba(210,0,35,.4)";ctx.shadowBlur=2;
       ctx.stroke(innerTrailPath);
       ctx.shadowBlur=0;
-      ctx.fillStyle="rgba(100,220,255,.13)";ctx.fill(innerGlowPath);
+      ctx.fillStyle="rgba(255,95,120,.15)";ctx.fill(innerGlowPath);
     }
     ctx.globalAlpha=1;
 
     // A few slow-moving sparks travel around the silhouette.
     if(!reducedMotion){
-      ctx.fillStyle="rgba(155,235,255,.88)";ctx.beginPath();
+      ctx.fillStyle="rgba(255,155,170,.9)";ctx.beginPath();
       for(let i=0;i<14;i++){
         const t=time*.19+i*Math.PI/7;
         const p=heartPoint(t);
