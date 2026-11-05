@@ -9,9 +9,9 @@
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 2450 : 3350;
-  const STAR_COUNT = coarse ? 90 : 140;
-  const DUST_COUNT = coarse ? 34 : 55;
+  const BASE_COUNT = coarse ? 4600 : 6400;
+  const STAR_COUNT = coarse ? 150 : 230;
+  const DUST_COUNT = coarse ? 70 : 110;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function heartPoint(t) {
@@ -39,10 +39,10 @@
 
   function createParticles() {
     const scale = Math.min(width*.405,height*.405,coarse?258:300);
-    const count = Math.max(850,Math.round(BASE_COUNT*quality));
+    const count = Math.max(1500,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
-      const edge=Math.random()<.54;
+      const edge=Math.random()<.43;
       const fill=edge?rand(.965,1.025):Math.sqrt(Math.random())*.96;
       const tx=width/2+p.x*scale*fill;
       const ty=height*.49+p.y*scale*fill;
@@ -50,8 +50,8 @@
       const palette=Math.random();
       return {
         tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
-        size:rand(1.05,2.35),
-        color:palette<.24?"rgba(65,155,255,.98)":palette<.7?"rgba(35,200,255,1)":"rgba(175,240,255,1)",
+        size:rand(.85,2.65),
+        color:palette<.28?"rgba(65,145,255,.98)":palette<.72?"rgba(25,195,255,1)":"rgba(205,248,255,1)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
         drift:rand(.65,2.2),seed:rand(0,Math.PI*2),
         windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35)
@@ -79,8 +79,8 @@
       frameTotal+=now-lastFrame; frameSamples++;
       if(frameSamples>=90){
         const avg=frameTotal/frameSamples;
-        if(avg>9.5 && quality>.62){quality=Math.max(.62,quality-.1);createParticles();}
-        else if(avg<7.6 && quality<1){quality=Math.min(1,quality+.04);createParticles();}
+        if(avg>8.7 && quality>.48){quality=Math.max(.48,quality-.12);createParticles();}
+        else if(avg<7.2 && quality<1){quality=Math.min(1,quality+.035);createParticles();}
         frameSamples=0;frameTotal=0;
       }
     }
@@ -169,22 +169,22 @@
       const radius=p.size*twinkle;
       const group=p.color.includes("65,155")?groups[0]:p.color.includes("35,200")?groups[1]:groups[2];
       group.path.moveTo(p.x+radius,p.y);group.path.arc(p.x,p.y,radius,0,Math.PI*2);
-      if(i%5===0){
-        const glow=radius*2.55;
+      if(i%3===0){
+        const glow=radius*2.75;
         glowPath.moveTo(p.x+glow,p.y);glowPath.arc(p.x,p.y,glow,0,Math.PI*2);
       }
     }
-    ctx.fillStyle="rgba(45,175,255,.19)";ctx.fill(glowPath);
+    ctx.fillStyle="rgba(45,175,255,.22)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
 
     // A few slow-moving sparks travel around the silhouette.
     if(!reducedMotion){
       ctx.fillStyle="rgba(155,235,255,.88)";ctx.beginPath();
-      for(let i=0;i<8;i++){
-        const t=time*.24+i*Math.PI/4;
+      for(let i=0;i<14;i++){
+        const t=time*.19+i*Math.PI/7;
         const p=heartPoint(t);
         const x=cx+p.x*scale*1.075*beat,y=cy+p.y*scale*1.075*beat;
-        ctx.moveTo(x+1.5,y);ctx.arc(x,y,1.5,0,Math.PI*2);
+        ctx.moveTo(x+rand(1.1,2.0),y);ctx.arc(x,y,rand(1.1,2.0),0,Math.PI*2);
       }
       ctx.fill();
     }
