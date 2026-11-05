@@ -1,196 +1,173 @@
 (() => {
   const canvas = document.getElementById("heartCanvas");
   const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
-  const replayBtn = document.getElementById("replayBtn");
+  if (!ctx) return;
 
   let width = 0, height = 0, particles = [], stars = [];
-  let startTime = performance.now(), rafId = 0, lastFrame = 0;
-  let frameSamples = 0, frameTotal = 0, quality = 1;
-  const rand = (a, b) => a + Math.random() * (b - a);
-  const isMobile = matchMedia("(max-width: 700px)").matches;
-  const BASE_COUNT = isMobile ? 760 : 1150;
-  const STAR_COUNT = isMobile ? 45 : 75;
+  let rafId = 0, lastFrame = 0, frameSamples = 0, frameTotal = 0;
+  let quality = 1, pointerActive = false, pointerX = -10000, pointerY = -10000;
+  let lastPointerTime = 0, startTime = performance.now();
+  const coarse = matchMedia("(pointer: coarse)").matches;
+  const rand = (a,b) => a + Math.random() * (b-a);
+  const BASE_COUNT = coarse ? 1450 : 2050;
+  const STAR_COUNT = coarse ? 55 : 85;
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function heartPoint(t) {
-    const x = 16 * Math.pow(Math.sin(t), 3);
-    const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
-    return { x: x / 18, y: -y / 18 };
+    const s = Math.sin(t), c = Math.cos(t);
+    return { x: 16*s*s*s/18, y: -(13*c-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/18 };
   }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    // Lower backing resolution substantially reduces fill and compositing cost on phones.
-    const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5);
-    width = rect.width;
-    height = rect.height;
-    canvas.width = Math.max(1, Math.round(width * dpr));
-    canvas.height = Math.max(1, Math.round(height * dpr));
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    stars = Array.from({ length: STAR_COUNT }, () => ({
-      x: Math.random() * width, y: Math.random() * height,
-      r: rand(.35, 1), a: rand(.15, .55), phase: rand(0, Math.PI * 2)
+    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.35 : 1.6);
+    width = rect.width; height = rect.height;
+    canvas.width = Math.max(1, Math.round(width*dpr));
+    canvas.height = Math.max(1, Math.round(height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    stars = Array.from({length:STAR_COUNT},()=>({
+      x:Math.random()*width,y:Math.random()*height,r:rand(.35,1.05),
+      alpha:rand(.12,.48),phase:rand(0,Math.PI*2)
     }));
-    makeParticles();
+    createParticles();
   }
 
-  function makeParticles() {
-    const scale = Math.min(width * .34, height * .38, 230);
-    const count = Math.max(420, Math.round(BASE_COUNT * quality));
-    particles = Array.from({ length: count }, () => {
-      const p = heartPoint(Math.random() * Math.PI * 2);
-      const edge = Math.random() < .34;
-      const factor = edge ? 1 + rand(-.035, .035) : Math.sqrt(Math.random()) * .96;
-      const tx = width / 2 + p.x * scale * factor;
-      const ty = height * .43 + p.y * scale * factor;
-      const angle = rand(0, Math.PI * 2);
-      const distance = rand(80, Math.max(width, height) * .65);
-      const palette = Math.random();
+  function createParticles() {
+    const scale = Math.min(width*.39,height*.39,coarse?245:285);
+    const count = Math.max(650,Math.round(BASE_COUNT*quality));
+    particles = Array.from({length:count},()=>{
+      const p=heartPoint(Math.random()*Math.PI*2);
+      const edge=Math.random()<.38;
+      const fill=edge?rand(.965,1.025):Math.sqrt(Math.random())*.96;
+      const tx=width/2+p.x*scale*fill;
+      const ty=height*.49+p.y*scale*fill;
+      const angle=rand(0,Math.PI*2), distance=rand(90,Math.max(width,height)*.7);
+      const palette=Math.random();
       return {
-        tx, ty,
-        x: width/2 + Math.cos(angle)*distance,
-        y: height/2 + Math.sin(angle)*distance,
-        size: rand(.65, 1.55),
-        // Three fixed palette groups let the renderer batch paths efficiently.
-        color: palette < .28 ? "rgba(55,165,255,.82)" :
-               palette < .72 ? "rgba(35,195,255,.88)" : "rgba(130,225,255,.94)",
-        phase: rand(0, Math.PI*2), speed: rand(.65, 1.35), delay: rand(0, 1.2)
+        tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
+        size:rand(.55,1.55),
+        color:palette<.25?"rgba(45,145,255,.82)":palette<.72?"rgba(25,190,255,.9)":"rgba(145,230,255,.96)",
+        phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
+        drift:rand(.5,2.1),seed:rand(0,Math.PI*2)
       };
     });
   }
 
-  function draw(now) {
-    if (!width || !height) {
-      rafId = requestAnimationFrame(draw);
-      return;
-    }
+  function onPointerMove(event) {
+    const rect=canvas.getBoundingClientRect();
+    pointerX=event.clientX-rect.left; pointerY=event.clientY-rect.top;
+    pointerActive=true; lastPointerTime=performance.now();
+  }
+  canvas.addEventListener("pointerdown",event=>{
+    if(event.pointerType==="touch") canvas.setPointerCapture?.(event.pointerId);
+    onPointerMove(event);
+  },{passive:true});
+  canvas.addEventListener("pointermove",onPointerMove,{passive:true});
+  canvas.addEventListener("pointerup",()=>{pointerActive=false;},{passive:true});
+  canvas.addEventListener("pointercancel",()=>{pointerActive=false;},{passive:true});
+  canvas.addEventListener("pointerleave",()=>{pointerActive=false;},{passive:true});
 
-    // Adapt quality if the device cannot sustain a smooth frame cadence.
-    if (lastFrame) {
-      const dt = now - lastFrame;
-      frameTotal += dt;
-      frameSamples++;
-      if (frameSamples >= 90) {
-        const avg = frameTotal / frameSamples;
-        if (avg > 20 && quality > .58) {
-          quality = Math.max(.58, quality - .14);
-          makeParticles();
-        } else if (avg < 13.5 && quality < 1) {
-          quality = Math.min(1, quality + .07);
-          makeParticles();
-        }
-        frameSamples = 0;
-        frameTotal = 0;
+  function render(now) {
+    if(!width||!height){rafId=requestAnimationFrame(render);return;}
+    if(lastFrame){
+      frameTotal+=now-lastFrame; frameSamples++;
+      if(frameSamples>=100){
+        const avg=frameTotal/frameSamples;
+        if(avg>19 && quality>.58){quality=Math.max(.58,quality-.12);createParticles();}
+        else if(avg<13 && quality<1){quality=Math.min(1,quality+.06);createParticles();}
+        frameSamples=0;frameTotal=0;
       }
     }
-    lastFrame = now;
+    lastFrame=now;
+    if(pointerActive && now-lastPointerTime>1600) pointerActive=false;
 
-    const elapsed = (now - startTime) / 1000;
-    ctx.clearRect(0, 0, width, height);
+    const time=(now-startTime)*.001;
+    const beat=reducedMotion?1:1+.025*Math.pow(Math.max(0,Math.sin(time*2.15)),12)+.008*Math.sin(time*2.15);
+    const cx=width*.5,cy=height*.49;
+    const scale=Math.min(width*.39,height*.39,coarse?245:285);
+    ctx.clearRect(0,0,width,height);
 
-    // Background stars are static-position dots; animate only a small subset.
-    ctx.fillStyle = "rgba(150,205,255,.42)";
+    // Twinkling background stars, drawn in one batched path.
+    ctx.fillStyle="rgba(160,210,255,.55)";
     ctx.beginPath();
-    for (const s of stars) {
-      const twinkle = .62 + .38 * Math.sin(elapsed * .9 + s.phase);
-      ctx.globalAlpha = s.a * twinkle;
-      ctx.moveTo(s.x + s.r, s.y);
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    for(const s of stars){
+      const a=s.alpha*(.68+.32*Math.sin(time*.85+s.phase));
+      ctx.globalAlpha=a;
+      ctx.moveTo(s.x+s.r,s.y);ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     }
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    ctx.fill();ctx.globalAlpha=1;
 
-    const formation = Math.min(1, Math.max(0, (elapsed - .25) / 2.1));
-    const ease = 1 - Math.pow(1 - formation, 3);
-    const beatWave = Math.max(0, Math.sin(elapsed * 2.15));
-    const beat = 1 + .027 * Math.pow(beatWave, 12) + .009 * Math.sin(elapsed * 2.15);
-    const scale = Math.min(width * .34, height * .38, 230);
-    const cx = width / 2, cy = height * .43;
+    ctx.globalCompositeOperation="lighter";
+    const aura=ctx.createRadialGradient(cx,cy,5,cx,cy,scale*1.45);
+    aura.addColorStop(0,"rgba(0,130,255,.13)");
+    aura.addColorStop(.48,"rgba(0,75,230,.065)");
+    aura.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=aura;ctx.fillRect(0,0,width,height);
 
-    // One soft aura per frame instead of an expensive shadow on every particle.
-    ctx.globalCompositeOperation = "lighter";
-    const aura = ctx.createRadialGradient(cx, cy, 4, cx, cy, scale * 1.25);
-    aura.addColorStop(0, `rgba(0,135,255,${.105 * ease})`);
-    aura.addColorStop(.58, `rgba(0,75,220,${.045 * ease})`);
-    aura.addColorStop(1, "rgba(0,0,0,0)");
-    ctx.fillStyle = aura;
-    ctx.fillRect(0, 0, width, height);
-
-    // Draw a small glow pass only for selected particles.
-    ctx.fillStyle = "rgba(30,165,255,.16)";
-    ctx.beginPath();
-    for (let i = 0; i < particles.length; i += 5) {
-      const p = particles[i];
-      const local = Math.max(0, Math.min(1, (formation - p.delay * .18) / .82));
-      const e = 1 - Math.pow(1 - local, 3);
-      const wobble = Math.sin(elapsed * p.speed + p.phase) * (1.2 + 1.8 * (1-e));
-      p.x += (cx + (p.tx - cx) * beat + wobble - p.x) * (.035 + e * .11);
-      p.y += (cy + (p.ty - cy) * beat + Math.cos(elapsed*p.speed+p.phase)*1.2 - p.y) * (.035 + e * .11);
-      ctx.moveTo(p.x + 3.1, p.y);
-      ctx.arc(p.x, p.y, 3.1, 0, Math.PI * 2);
-    }
-    ctx.fill();
-
-    // Crisp particles: no per-particle shadowBlur and no per-particle gradients.
-    const groups = [
-      { color: "rgba(55,165,255,.82)", path: new Path2D() },
-      { color: "rgba(35,195,255,.88)", path: new Path2D() },
-      { color: "rgba(130,225,255,.94)", path: new Path2D() }
+    const groups=[
+      {color:"rgba(45,145,255,.82)",path:new Path2D()},
+      {color:"rgba(25,190,255,.9)",path:new Path2D()},
+      {color:"rgba(145,230,255,.96)",path:new Path2D()}
     ];
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      const local = Math.max(0, Math.min(1, (formation - p.delay * .18) / .82));
-      const e = 1 - Math.pow(1 - local, 3);
-      if (i % 5 !== 0) {
-        const wobble = Math.sin(elapsed * p.speed + p.phase) * (1.2 + 1.8 * (1-e));
-        p.x += (cx + (p.tx - cx) * beat + wobble - p.x) * (.035 + e * .11);
-        p.y += (cy + (p.ty - cy) * beat + Math.cos(elapsed*p.speed+p.phase)*1.2 - p.y) * (.035 + e * .11);
-      }
-      const twinkle = .82 + .18 * Math.sin(elapsed * 2 + p.phase);
-      const radius = p.size * (.72 + .28 * e) * twinkle;
-      const group = p.color.includes("55,165") ? groups[0] :
-                    p.color.includes("35,195") ? groups[1] : groups[2];
-      group.path.moveTo(p.x + radius, p.y);
-      group.path.arc(p.x, p.y, radius, 0, Math.PI * 2);
-    }
-    for (const group of groups) {
-      ctx.fillStyle = group.color;
-      ctx.fill(group.path);
-    }
+    const glowPath=new Path2D();
+    const influence=coarse?92:105;
+    const influence2=influence*influence;
 
-    // Thin electric accents, without canvas shadow filters.
-    ctx.strokeStyle = "rgba(75,205,255,.22)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let i = 0; i < 9; i++) {
-      const t = elapsed * .55 + i * 2.4;
-      const p1 = heartPoint(t), p2 = heartPoint(t + .12);
-      ctx.moveTo(cx + p1.x*scale*1.02*beat, cy + p1.y*scale*1.02*beat);
-      ctx.lineTo(cx + p2.x*scale*1.02*beat, cy + p2.y*scale*1.02*beat);
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i];
+      const formation=Math.min(1,Math.max(0,(time-.18-p.delay*.13)/1.65));
+      const ease=1-Math.pow(1-formation,3);
+      // The heart keeps breathing and shimmering after formation is complete.
+      const orbit=reducedMotion?0:Math.sin(time*p.speed+p.phase)*p.drift;
+      const shimmer=reducedMotion?0:Math.cos(time*.8+p.seed)*1.25;
+      const targetX=cx+(p.tx-cx)*beat+orbit;
+      const targetY=cy+(p.ty-cy)*beat+shimmer;
+
+      let pushX=0,pushY=0;
+      if(pointerActive){
+        const dx=p.x-pointerX,dy=p.y-pointerY,dist2=dx*dx+dy*dy;
+        if(dist2<influence2 && dist2>1){
+          const dist=Math.sqrt(dist2);
+          const force=(1-dist/influence)*20;
+          pushX=dx/dist*force;pushY=dy/dist*force;
+        }
+      }
+      const spring=.045+ease*.105;
+      p.x+=(targetX+pushX-p.x)*spring;
+      p.y+=(targetY+pushY-p.y)*spring;
+
+      const twinkle=.78+.22*Math.sin(time*1.7+p.phase);
+      const radius=p.size*twinkle;
+      const group=p.color.includes("45,145")?groups[0]:p.color.includes("25,190")?groups[1]:groups[2];
+      group.path.moveTo(p.x+radius,p.y);
+      group.path.arc(p.x,p.y,radius,0,Math.PI*2);
+
+      if(i%6===0){
+        glowPath.moveTo(p.x+2.5,p.y);
+        glowPath.arc(p.x,p.y,2.5,0,Math.PI*2);
+      }
+    }
+    ctx.fillStyle="rgba(30,160,255,.13)";ctx.fill(glowPath);
+    for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
+
+    // Sparse electric sparks orbit around the heart outline.
+    ctx.strokeStyle="rgba(85,205,255,.2)";ctx.lineWidth=1;ctx.beginPath();
+    for(let i=0;i<12;i++){
+      const t=time*.42+i*2.4;
+      const a=heartPoint(t),b=heartPoint(t+.11);
+      ctx.moveTo(cx+a.x*scale*1.035*beat,cy+a.y*scale*1.035*beat);
+      ctx.lineTo(cx+b.x*scale*1.035*beat,cy+b.y*scale*1.035*beat);
     }
     ctx.stroke();
-
-    ctx.globalCompositeOperation = "source-over";
-    rafId = requestAnimationFrame(draw);
+    ctx.globalCompositeOperation="source-over";
+    rafId=requestAnimationFrame(render);
   }
 
-  function start() {
-    startTime = performance.now();
-    lastFrame = 0;
-    makeParticles();
-  }
-
-  replayBtn.addEventListener("click", start);
-  window.addEventListener("resize", resize, { passive: true });
-  document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      cancelAnimationFrame(rafId);
-      lastFrame = 0;
-    } else {
-      lastFrame = 0;
-      rafId = requestAnimationFrame(draw);
-    }
+  document.addEventListener("visibilitychange",()=>{
+    if(document.hidden){cancelAnimationFrame(rafId);lastFrame=0;}
+    else{lastFrame=0;rafId=requestAnimationFrame(render);}
   });
-
+  window.addEventListener("resize",resize,{passive:true});
   resize();
-  rafId = requestAnimationFrame(draw);
+  rafId=requestAnimationFrame(render);
 })();
