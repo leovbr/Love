@@ -3,14 +3,15 @@
   const ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
   if (!ctx) return;
 
-  let width = 0, height = 0, particles = [], stars = [];
+  let width = 0, height = 0, particles = [], stars = [], dust = [];
   let rafId = 0, lastFrame = 0, frameSamples = 0, frameTotal = 0;
   let quality = 1, pointerActive = false, pointerX = -10000, pointerY = -10000;
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 2250 : 3100;
-  const STAR_COUNT = coarse ? 55 : 85;
+  const BASE_COUNT = coarse ? 1850 : 2500;
+  const STAR_COUNT = coarse ? 90 : 140;
+  const DUST_COUNT = coarse ? 34 : 55;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function heartPoint(t) {
@@ -20,24 +21,28 @@
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.35 : 1.6);
+    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 1.5);
     width = rect.width; height = rect.height;
     canvas.width = Math.max(1, Math.round(width*dpr));
     canvas.height = Math.max(1, Math.round(height*dpr));
     ctx.setTransform(dpr,0,0,dpr,0,0);
     stars = Array.from({length:STAR_COUNT},()=>({
-      x:Math.random()*width,y:Math.random()*height,r:rand(.35,1.05),
-      alpha:rand(.12,.48),phase:rand(0,Math.PI*2)
+      x:Math.random()*width,y:Math.random()*height,r:rand(.45,1.35),
+      alpha:rand(.2,.72),phase:rand(0,Math.PI*2),speed:rand(.12,.42)
+    }));
+    dust = Array.from({length:DUST_COUNT},()=>({
+      x:Math.random()*width,y:Math.random()*height,r:rand(.7,1.8),
+      phase:rand(0,Math.PI*2),speed:rand(3,10),alpha:rand(.12,.3)
     }));
     createParticles();
   }
 
   function createParticles() {
-    const scale = Math.min(width*.39,height*.39,coarse?245:285);
-    const count = Math.max(900,Math.round(BASE_COUNT*quality));
+    const scale = Math.min(width*.405,height*.405,coarse?258:300);
+    const count = Math.max(850,Math.round(BASE_COUNT*quality));
     particles = Array.from({length:count},()=>{
       const p=heartPoint(Math.random()*Math.PI*2);
-      const edge=Math.random()<.38;
+      const edge=Math.random()<.42;
       const fill=edge?rand(.965,1.025):Math.sqrt(Math.random())*.96;
       const tx=width/2+p.x*scale*fill;
       const ty=height*.49+p.y*scale*fill;
@@ -45,10 +50,10 @@
       const palette=Math.random();
       return {
         tx,ty,x:width/2+Math.cos(angle)*distance,y:height/2+Math.sin(angle)*distance,
-        size:rand(.72,1.85),
-        color:palette<.25?"rgba(45,145,255,.82)":palette<.72?"rgba(25,190,255,.9)":"rgba(145,230,255,.96)",
+        size:rand(.95,2.05),
+        color:palette<.24?"rgba(65,155,255,.98)":palette<.7?"rgba(35,200,255,1)":"rgba(175,240,255,1)",
         phase:rand(0,Math.PI*2),speed:rand(.55,1.25),delay:rand(0,1.1),
-        drift:rand(.6,2.4),seed:rand(0,Math.PI*2),
+        drift:rand(.65,2.2),seed:rand(0,Math.PI*2),
         windAngle:rand(0,Math.PI*2),windRadius:rand(.18,1.05),windSpeed:rand(.55,1.35),windWidth:rand(.65,1.35)
       };
     });
@@ -72,10 +77,10 @@
     if(!width||!height){rafId=requestAnimationFrame(render);return;}
     if(lastFrame){
       frameTotal+=now-lastFrame; frameSamples++;
-      if(frameSamples>=100){
+      if(frameSamples>=90){
         const avg=frameTotal/frameSamples;
-        if(avg>19 && quality>.58){quality=Math.max(.58,quality-.12);createParticles();}
-        else if(avg<13 && quality<1){quality=Math.min(1,quality+.06);createParticles();}
+        if(avg>9.5 && quality>.62){quality=Math.max(.62,quality-.1);createParticles();}
+        else if(avg<7.6 && quality<1){quality=Math.min(1,quality+.04);createParticles();}
         frameSamples=0;frameTotal=0;
       }
     }
@@ -83,101 +88,114 @@
     if(pointerActive && now-lastPointerTime>1600) pointerActive=false;
 
     const time=(now-startTime)*.001;
-    const beat=reducedMotion?1:1+.025*Math.pow(Math.max(0,Math.sin(time*2.15)),12)+.008*Math.sin(time*2.15);
+    const beat=reducedMotion?1:1+.032*Math.pow(Math.max(0,Math.sin(time*2.05)),12)+.009*Math.sin(time*2.05);
     const cx=width*.5,cy=height*.49;
-    const scale=Math.min(width*.39,height*.39,coarse?245:285);
+    const scale=Math.min(width*.405,height*.405,coarse?258:300);
     ctx.clearRect(0,0,width,height);
 
-    // Twinkling background stars, drawn in one batched path.
-    ctx.fillStyle="rgba(160,210,255,.55)";
+    // Layered nebula clouds: low-cost gradients behind the particle heart.
+    const nebula1=ctx.createRadialGradient(cx-width*.2,cy-height*.12,2,cx-width*.2,cy-height*.12,Math.max(width,height)*.58);
+    nebula1.addColorStop(0,"rgba(0,105,255,.105)");
+    nebula1.addColorStop(.42,"rgba(0,55,155,.055)");
+    nebula1.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=nebula1;ctx.fillRect(0,0,width,height);
+    const nebula2=ctx.createRadialGradient(cx+Math.sin(time*.12)*width*.16,cy+height*.18,1,cx+Math.sin(time*.12)*width*.16,cy+height*.18,Math.max(width,height)*.43);
+    nebula2.addColorStop(0,"rgba(0,185,255,.055)");
+    nebula2.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=nebula2;ctx.fillRect(0,0,width,height);
+
+    // Distant stars and drifting cosmic dust.
+    ctx.fillStyle="rgba(170,220,255,.8)";
     ctx.beginPath();
     for(const s of stars){
-      const a=s.alpha*(.68+.32*Math.sin(time*.85+s.phase));
+      const a=s.alpha*(.62+.38*Math.sin(time*s.speed+s.phase));
       ctx.globalAlpha=a;
       ctx.moveTo(s.x+s.r,s.y);ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
     }
     ctx.fill();ctx.globalAlpha=1;
+    if(!reducedMotion){
+      ctx.fillStyle="rgba(65,165,255,.5)";ctx.beginPath();
+      for(const d of dust){
+        const x=(d.x+Math.sin(time*.18+d.phase)*d.speed+width)%width;
+        const y=(d.y+Math.cos(time*.13+d.phase)*d.speed*.55+height)%height;
+        ctx.globalAlpha=d.alpha*(.7+.3*Math.sin(time*.7+d.phase));
+        ctx.moveTo(x+d.r,y);ctx.arc(x,y,d.r,0,Math.PI*2);
+      }
+      ctx.fill();ctx.globalAlpha=1;
+    }
 
     ctx.globalCompositeOperation="lighter";
-    const aura=ctx.createRadialGradient(cx,cy,5,cx,cy,scale*1.45);
-    aura.addColorStop(0,"rgba(0,130,255,.13)");
-    aura.addColorStop(.48,"rgba(0,75,230,.065)");
+    const aura=ctx.createRadialGradient(cx,cy,5,cx,cy,scale*1.65);
+    aura.addColorStop(0,"rgba(0,150,255,.19)");
+    aura.addColorStop(.42,"rgba(0,95,255,.085)");
     aura.addColorStop(1,"rgba(0,0,0,0)");
     ctx.fillStyle=aura;ctx.fillRect(0,0,width,height);
 
+    // Fine orbital ellipses add depth without competing with the heart.
+    if(!reducedMotion){
+      ctx.save();ctx.translate(cx,cy);ctx.rotate(-.16+Math.sin(time*.12)*.025);
+      ctx.strokeStyle="rgba(50,155,255,.105)";ctx.lineWidth=.8;
+      ctx.beginPath();ctx.ellipse(0,0,scale*1.28,scale*.53,0,0,Math.PI*2);ctx.stroke();
+      ctx.rotate(1.02);ctx.strokeStyle="rgba(85,195,255,.075)";
+      ctx.beginPath();ctx.ellipse(0,0,scale*1.36,scale*.48,0,0,Math.PI*2);ctx.stroke();
+      ctx.restore();
+    }
+
     const groups=[
-      {color:"rgba(45,145,255,.82)",path:new Path2D()},
-      {color:"rgba(25,190,255,.9)",path:new Path2D()},
-      {color:"rgba(145,230,255,.96)",path:new Path2D()}
+      {color:"rgba(65,155,255,.98)",path:new Path2D()},
+      {color:"rgba(35,200,255,1)",path:new Path2D()},
+      {color:"rgba(175,240,255,1)",path:new Path2D()}
     ];
     const glowPath=new Path2D();
-    const windTrail=new Path2D();
-    const influence=coarse?92:105;
-    const influence2=influence*influence;
+    const influence=coarse?92:105, influence2=influence*influence;
 
     for(let i=0;i<particles.length;i++){
       const p=particles[i];
-      // Blue cosmic wind streamlines gradually curl inward and form the heart.
       const formation=Math.min(1,Math.max(0,(time-.45-p.delay*.22)/3.35));
       const ease=1-Math.pow(1-formation,3);
       const windPhase=time*p.windSpeed+p.windAngle;
       const windX=cx+Math.cos(windPhase)*scale*p.windRadius*p.windWidth+Math.sin(windPhase*1.7+p.seed)*scale*.16;
       const windY=cy+Math.sin(windPhase)*scale*p.windRadius*.78+Math.cos(windPhase*1.35+p.seed)*scale*.2;
-      const streamX=windX+(p.tx-cx)*.28;
-      const streamY=windY+(p.ty-cy)*.28;
-      // The heart keeps breathing and shimmering after formation is complete.
+      const streamX=windX+(p.tx-cx)*.28,streamY=windY+(p.ty-cy)*.28;
       const orbit=reducedMotion?0:Math.sin(time*p.speed+p.phase)*p.drift;
       const shimmer=reducedMotion?0:Math.cos(time*.8+p.seed)*1.25;
-      const heartX=cx+(p.tx-cx)*beat+orbit;
-      const heartY=cy+(p.ty-cy)*beat+shimmer;
-      const targetX=streamX+(heartX-streamX)*ease;
-      const targetY=streamY+(heartY-streamY)*ease;
+      const heartX=cx+(p.tx-cx)*beat+orbit,heartY=cy+(p.ty-cy)*beat+shimmer;
+      const targetX=streamX+(heartX-streamX)*ease,targetY=streamY+(heartY-streamY)*ease;
 
       let pushX=0,pushY=0;
       if(pointerActive){
         const dx=p.x-pointerX,dy=p.y-pointerY,dist2=dx*dx+dy*dy;
         if(dist2<influence2 && dist2>1){
-          const dist=Math.sqrt(dist2);
-          const force=(1-dist/influence)*20;
+          const dist=Math.sqrt(dist2),force=(1-dist/influence)*20;
           pushX=dx/dist*force;pushY=dy/dist*force;
         }
       }
       const spring=.035+ease*.115;
-      p.x+=(targetX+pushX-p.x)*spring;
-      p.y+=(targetY+pushY-p.y)*spring;
+      p.x+=(targetX+pushX-p.x)*spring;p.y+=(targetY+pushY-p.y)*spring;
 
-      const twinkle=.78+.22*Math.sin(time*1.7+p.phase);
+      const twinkle=.82+.18*Math.sin(time*1.7+p.phase);
       const radius=p.size*twinkle;
-      const group=p.color.includes("45,145")?groups[0]:p.color.includes("25,190")?groups[1]:groups[2];
-      group.path.moveTo(p.x+radius,p.y);
-      group.path.arc(p.x,p.y,radius,0,Math.PI*2);
-
-      if(formation<.98 && i%3===0){
-        const tailX=p.x-Math.cos(windPhase)*9;
-        const tailY=p.y-Math.sin(windPhase)*9;
-        windTrail.moveTo(tailX,tailY);windTrail.lineTo(p.x,p.y);
-      }
-      if(i%5===0){
-        glowPath.moveTo(p.x+2.5,p.y);
-        glowPath.arc(p.x,p.y,2.5,0,Math.PI*2);
+      const group=p.color.includes("65,155")?groups[0]:p.color.includes("35,200")?groups[1]:groups[2];
+      group.path.moveTo(p.x+radius,p.y);group.path.arc(p.x,p.y,radius,0,Math.PI*2);
+      if(i%7===0){
+        const glow=radius*2.15;
+        glowPath.moveTo(p.x+glow,p.y);glowPath.arc(p.x,p.y,glow,0,Math.PI*2);
       }
     }
-    if(time<3.9){
-      ctx.strokeStyle="rgba(55,175,255,.16)";ctx.lineWidth=1.15;
-      ctx.stroke(windTrail);
-    }
-    ctx.fillStyle="rgba(30,160,255,.15)";ctx.fill(glowPath);
+    ctx.fillStyle="rgba(45,175,255,.13)";ctx.fill(glowPath);
     for(const group of groups){ctx.fillStyle=group.color;ctx.fill(group.path);}
 
-    // Sparse electric sparks orbit around the heart outline.
-    ctx.strokeStyle="rgba(85,205,255,.2)";ctx.lineWidth=1;ctx.beginPath();
-    for(let i=0;i<12;i++){
-      const t=time*.42+i*2.4;
-      const a=heartPoint(t),b=heartPoint(t+.11);
-      ctx.moveTo(cx+a.x*scale*1.035*beat,cy+a.y*scale*1.035*beat);
-      ctx.lineTo(cx+b.x*scale*1.035*beat,cy+b.y*scale*1.035*beat);
+    // A few slow-moving sparks travel around the silhouette.
+    if(!reducedMotion){
+      ctx.fillStyle="rgba(155,235,255,.88)";ctx.beginPath();
+      for(let i=0;i<8;i++){
+        const t=time*.24+i*Math.PI/4;
+        const p=heartPoint(t);
+        const x=cx+p.x*scale*1.075*beat,y=cy+p.y*scale*1.075*beat;
+        ctx.moveTo(x+1.5,y);ctx.arc(x,y,1.5,0,Math.PI*2);
+      }
+      ctx.fill();
     }
-    ctx.stroke();
     ctx.globalCompositeOperation="source-over";
     rafId=requestAnimationFrame(render);
   }
