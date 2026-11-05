@@ -10,9 +10,9 @@
   let lastPointerTime = 0, startTime = performance.now();
   const coarse = matchMedia("(pointer: coarse)").matches;
   const rand = (a,b) => a + Math.random() * (b-a);
-  const BASE_COUNT = coarse ? 4600 : 6400;
-  const STAR_COUNT = coarse ? 150 : 230;
-  const DUST_COUNT = coarse ? 70 : 110;
+  const BASE_COUNT = coarse ? 2800 : 4400;
+  const STAR_COUNT = coarse ? 90 : 150;
+  const DUST_COUNT = coarse ? 32 : 60;
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function heartPoint(t) {
@@ -22,7 +22,7 @@
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.25 : 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.1 : 1.35);
     width = rect.width; height = rect.height;
     canvas.width = Math.max(1, Math.round(width*dpr));
     canvas.height = Math.max(1, Math.round(height*dpr));
@@ -100,66 +100,9 @@
     const scale=Math.min(width*.425,height*.425,coarse?270:315);
     ctx.clearRect(0,0,width,height);
 
-    // The cosmic background materializes from darkness independently of the heart.
+    // Background is composed by lightweight CSS layers; keep canvas work focused on particles.
     const bgRaw=Math.max(0,Math.min(1,time/7.2));
     const bgReveal=1-Math.pow(1-bgRaw,3);
-    const maxDim=Math.max(width,height);
-    ctx.save();
-    ctx.globalCompositeOperation="screen";
-    ctx.globalAlpha=bgReveal;
-    const clouds=[
-      {x:.16,y:.27,r:.57,a:.19,c:"rgba(0,92,255,"},
-      {x:.83,y:.39,r:.52,a:.16,c:"rgba(0,190,255,"},
-      {x:.28,y:.72,r:.48,a:.13,c:"rgba(30,75,255,"},
-      {x:.78,y:.82,r:.43,a:.12,c:"rgba(0,145,230,"},
-      {x:.52,y:.12,r:.34,a:.10,c:"rgba(95,75,255,"}
-    ];
-    for(let i=0;i<clouds.length;i++){
-      const q=clouds[i];
-      const driftX=Math.sin(time*.075+i*1.7)*width*.055;
-      const driftY=Math.cos(time*.061+i*1.3)*height*.035;
-      const x=width*q.x+driftX,y=height*q.y+driftY,r=maxDim*q.r;
-      const g=ctx.createRadialGradient(x,y,0,x,y,r);
-      g.addColorStop(0,q.c+(q.a*.9)+")");
-      g.addColorStop(.32,q.c+(q.a*.52)+")");
-      g.addColorStop(.7,q.c+(q.a*.13)+")");
-      g.addColorStop(1,"rgba(0,0,0,0)");
-      ctx.fillStyle=g;ctx.fillRect(0,0,width,height);
-    }
-    // Long, soft plasma filaments drift through the nebula like illuminated gas.
-    ctx.globalAlpha=bgReveal*.52;
-    ctx.lineCap="round";
-    for(let layer=0;layer<3;layer++){
-      for(let j=0;j<4;j++){
-        const phase=time*(.055+layer*.012)+j*1.47+layer*2.1;
-        const y=height*(.19+j*.205)+Math.sin(phase)*height*.055;
-        const sway=width*(.12+layer*.035);
-        const grad=ctx.createLinearGradient(0,y,width,y+height*.08);
-        grad.addColorStop(0,"rgba(0,95,255,0)");
-        grad.addColorStop(.28,"rgba(25,130,255,.12)");
-        grad.addColorStop(.53,"rgba(55,210,255,.22)");
-        grad.addColorStop(.78,"rgba(35,105,255,.13)");
-        grad.addColorStop(1,"rgba(0,80,255,0)");
-        ctx.beginPath();
-        ctx.moveTo(-sway,y+Math.sin(phase*.7)*height*.06);
-        ctx.bezierCurveTo(width*.22,y-height*.13+Math.sin(phase)*height*.04,width*.68,y+height*.15+Math.cos(phase)*height*.04,width+sway,y-height*.035);
-        ctx.strokeStyle=grad;ctx.lineWidth=layer===0?18:layer===1?8:3;
-        ctx.shadowColor="rgba(20,135,255,.35)";ctx.shadowBlur=layer===2?14:25;
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
-
-    // A faint animated blue haze sits behind the moving gas filaments.
-    const nebula1=ctx.createRadialGradient(cx-width*.2,cy-height*.12,2,cx-width*.2,cy-height*.12,maxDim*.58);
-    nebula1.addColorStop(0,"rgba(0,105,255,.16)");
-    nebula1.addColorStop(.42,"rgba(0,55,155,.075)");
-    nebula1.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.globalAlpha=bgReveal;ctx.fillStyle=nebula1;ctx.fillRect(0,0,width,height);
-    const nebula2=ctx.createRadialGradient(cx+Math.sin(time*.12)*width*.16,cy+height*.18,1,cx+Math.sin(time*.12)*width*.16,cy+height*.18,maxDim*.43);
-    nebula2.addColorStop(0,"rgba(0,185,255,.085)");
-    nebula2.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=nebula2;ctx.fillRect(0,0,width,height);ctx.globalAlpha=1;
 
     // Distant stars and drifting cosmic dust.
     ctx.fillStyle="rgba(170,220,255,.8)";
